@@ -5,6 +5,7 @@ export const AUTH_PROVIDERS = {
   LOGIN_DEV: "login_dev",
   LOGIN_GITHUB: "login_github",
   LOGIN_GOOGLE: "login_google",
+  LOGIN_OIDC: "login_oidc",
 } as const;
 
 export const LOGIN_ERROR_MESSAGES = {
@@ -13,6 +14,8 @@ export const LOGIN_ERROR_MESSAGES = {
     "There has been an issue logging you in with Github",
   [AUTH_PROVIDERS.LOGIN_GOOGLE]:
     "There has been an issue logging you in with Google",
+  [AUTH_PROVIDERS.LOGIN_OIDC]:
+    "There has been an issue logging you in with OIDC",
 };
 
 export const useLoginErrorMessage = (): string => {
@@ -48,6 +51,9 @@ export const useLoginErrorMessage = (): string => {
         break;
       case AUTH_PROVIDERS.LOGIN_GOOGLE:
         setMessageToReturn(LOGIN_ERROR_MESSAGES[AUTH_PROVIDERS.LOGIN_GOOGLE]);
+        break;
+      case AUTH_PROVIDERS.LOGIN_OIDC:
+        setMessageToReturn(LOGIN_ERROR_MESSAGES[AUTH_PROVIDERS.LOGIN_OIDC]);
         break;
 
       default:

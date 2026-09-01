@@ -9,6 +9,11 @@ const environment = z.object({
   GITHUB_ISSUE_REPORT_PRIVATE_KEY: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
+  // OIDC (GoTrue/Supabase Auth)
+  OIDC_ISSUER_URL: z.string().url().optional(),
+  OIDC_CLIENT_ID: z.string().optional(),
+  OIDC_CLIENT_SECRET: z.string().optional(),
+  OIDC_PROVIDER_NAME: z.string().default("Studio"),
 
   // Secret session key, context encode
   AUTH_SECRET: z.string().optional(),
@@ -91,6 +96,10 @@ const rawEnv = {
   GITHUB_ISSUE_REPORT_PRIVATE_KEY: process.env.GITHUB_ISSUE_REPORT_PRIVATE_KEY,
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
   GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  OIDC_ISSUER_URL: process.env.OIDC_ISSUER_URL,
+  OIDC_CLIENT_ID: process.env.OIDC_CLIENT_ID,
+  OIDC_CLIENT_SECRET: process.env.OIDC_CLIENT_SECRET,
+  OIDC_PROVIDER_NAME: process.env.OIDC_PROVIDER_NAME,
   AUTH_SECRET: process.env.AUTH_SECRET,
   DEPLOYMENT_ENVIRONMENT: process.env.DEPLOYMENT_ENVIRONMENT,
   DEPLOYMENT_URL: process.env.DEPLOYMENT_URL,

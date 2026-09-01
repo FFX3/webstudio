@@ -17,6 +17,8 @@ export type LoginProps = {
   errorMessage?: string;
   isGithubEnabled?: boolean;
   isGoogleEnabled?: boolean;
+  isOidcEnabled?: boolean;
+  oidcProviderName?: string;
   isSecretLoginEnabled?: boolean;
   devPlanNames?: string[];
 };
@@ -25,6 +27,8 @@ export const Login = ({
   errorMessage,
   isGithubEnabled,
   isGoogleEnabled,
+  isOidcEnabled,
+  oidcProviderName = "Studio",
   isSecretLoginEnabled,
   devPlanNames,
 }: LoginProps) => {
@@ -88,6 +92,18 @@ export const Login = ({
               >
                 Sign in with GitHub
               </Button>
+              {isOidcEnabled && (
+                <Button
+                  color="ghost"
+                  css={{
+                    border: `1px solid ${cssVar("--border-default")}`,
+                    height: theme.spacing[15],
+                  }}
+                  formAction={authPath({ provider: "oidc" })}
+                >
+                  Sign in with {oidcProviderName}
+                </Button>
+              )}
             </Form>
             {isSecretLoginEnabled && (
               <SecretLogin devPlanNames={devPlanNames} />

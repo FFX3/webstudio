@@ -88,35 +88,43 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
 }
 
 if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
-  // Use OIDC auto-discovery to set up the strategy
-  OAuth2Strategy.discover(env.OIDC_ISSUER_URL, {
-    clientId: env.OIDC_CLIENT_ID,
-    clientSecret: env.OIDC_CLIENT_SECRET || "",
-    redirectURI: `${callbackOrigin}${authCallbackPath({ provider: "oidc" })}`,
-    scopes: ["openid", "email", "profile"],
-  }).then((oidcStrategy) => {
-    authenticator.use(
-      new OAuth2Strategy(oidcStrategy.options, async ({ tokens, request }) => {
-        // Fetch user info from the OIDC provider
-        const response = await fetch(oidcStrategy.options.userinfoEndpoint!, {
-          headers: { Authorization: `Bearer ${tokens.accessToken()}` },
-        });
-        const profile = await response.json();
-        return strategyCallback({
-          profile: {
-            id: profile.sub,
-            displayName: profile.name || profile.email,
-            emails: [{ value: profile.email }],
-            photos: profile.picture ? [{ value: profile.picture }] : [],
-            provider: "oidc",
-            _json: profile,
-          } as GitHubProfile,
-          request,
-        });
-      }),
-      "oidc"
-    );
-  });
+  // Fetch OIDC discovery document and set up strategy
+  fetch(`${env.OIDC_ISSUER_URL}/.well-known/openid-configuration`)
+    .then((res) => res.json())
+    .then((config) => {
+      const oidc = new OAuth2Strategy(
+        {
+          clientId: env.OIDC_CLIENT_ID!,
+          clientSecret: env.OIDC_CLIENT_SECRET || "",
+          redirectURI: `${callbackOrigin}${authCallbackPath({ provider: "oidc" })}`,
+          authorizationEndpoint: config.authorization_endpoint,
+          tokenEndpoint: config.token_endpoint,
+          scopes: ["openid", "email", "profile"],
+        },
+        async ({ tokens, request }) => {
+          // Fetch user info from the OIDC provider
+          const response = await fetch(config.userinfo_endpoint, {
+            headers: { Authorization: `Bearer ${tokens.accessToken()}` },
+          });
+          const profile = await response.json();
+          return strategyCallback({
+            profile: {
+              id: profile.sub,
+              displayName: profile.name || profile.email,
+              emails: [{ value: profile.email }],
+              photos: profile.picture ? [{ value: profile.picture }] : [],
+              provider: "oidc",
+              _json: profile,
+            } as GitHubProfile,
+            request,
+          });
+        }
+      );
+      authenticator.use(oidc, "oidc");
+    })
+    .catch((err) => {
+      console.error("Failed to configure OIDC:", err);
+    });
 }
 
 if (env.DEV_LOGIN === "true") {

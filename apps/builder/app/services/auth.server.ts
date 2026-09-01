@@ -102,17 +102,20 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
           scopes: ["openid", "email", "profile"],
         },
         async ({ tokens, request }) => {
-          // Fetch user info from the OIDC provider
-          const response = await fetch(config.userinfo_endpoint, {
+          // Fetch user info from GoTrue /user endpoint (not OIDC userinfo)
+          // GoTrue's /user returns email directly, /oauth/userinfo may not
+          const userinfoUrl = env.OIDC_ISSUER_URL + "/user";
+          const response = await fetch(userinfoUrl, {
             headers: { Authorization: `Bearer ${tokens.accessToken}` },
           });
           const profile = await response.json();
           return strategyCallback({
             profile: {
-              id: profile.sub,
-              displayName: profile.name || profile.email,
+              // GoTrue /user returns id, not sub
+              id: profile.id || profile.sub,
+              displayName: profile.user_metadata?.name || profile.email,
               emails: [{ value: profile.email }],
-              photos: profile.picture ? [{ value: profile.picture }] : [],
+              photos: profile.user_metadata?.picture ? [{ value: profile.user_metadata.picture }] : [],
               provider: "oidc",
               _json: profile,
             } as GitHubProfile,

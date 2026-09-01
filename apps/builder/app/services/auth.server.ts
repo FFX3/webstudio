@@ -104,7 +104,7 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
         async ({ tokens, request }) => {
           // Fetch user info from the OIDC provider
           const response = await fetch(config.userinfo_endpoint, {
-            headers: { Authorization: `Bearer ${tokens.accessToken()}` },
+            headers: { Authorization: `Bearer ${tokens.accessToken}` },
           });
           const profile = await response.json();
           return strategyCallback({

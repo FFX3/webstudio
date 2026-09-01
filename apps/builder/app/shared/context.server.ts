@@ -207,6 +207,8 @@ const createApiClientContext = (request: Request): AppContext["apiClient"] => {
 };
 
 export const createPostgrestContext = () => {
+  console.log("[DEBUG] POSTGREST_URL:", env.POSTGREST_URL);
+  console.log("[DEBUG] POSTGREST_API_KEY exists:", !!env.POSTGREST_API_KEY);
   return { client: createClient(env.POSTGREST_URL, env.POSTGREST_API_KEY) };
 };
 

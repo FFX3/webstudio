@@ -99,9 +99,7 @@ export const loader = async ({
       isGoogleEnabled: Boolean(
         env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ),
-      isOidcEnabled: Boolean(
-        env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID && env.OIDC_CLIENT_SECRET
-      ),
+      isOidcEnabled: Boolean(env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID),
       oidcProviderName: env.OIDC_PROVIDER_NAME,
     },
     { headers }

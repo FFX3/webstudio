@@ -87,11 +87,11 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
   authenticator.use(google, "google");
 }
 
-if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID && env.OIDC_CLIENT_SECRET) {
+if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
   // Use OIDC auto-discovery to set up the strategy
   OAuth2Strategy.discover(env.OIDC_ISSUER_URL, {
     clientId: env.OIDC_CLIENT_ID,
-    clientSecret: env.OIDC_CLIENT_SECRET,
+    clientSecret: env.OIDC_CLIENT_SECRET || "",
     redirectURI: `${callbackOrigin}${authCallbackPath({ provider: "oidc" })}`,
     scopes: ["openid", "email", "profile"],
   }).then((oidcStrategy) => {

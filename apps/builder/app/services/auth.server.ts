@@ -124,13 +124,14 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
         },
         async ({ tokens, request }) => {
           console.log("[OIDC] Tokens received:", JSON.stringify(tokens, null, 2));
-          console.log("[OIDC] Access token (first 50 chars):", tokens.accessToken?.substring(0, 50));
+          const accessToken = (tokens as Record<string, string>).access_token;
+          console.log("[OIDC] Access token (first 50 chars):", accessToken?.substring(0, 50));
           // Fetch user info from GoTrue /user endpoint (not OIDC userinfo)
           // GoTrue's /user returns email directly, /oauth/userinfo may not
           const userinfoUrl = env.OIDC_ISSUER_URL + "/user";
           console.log("[OIDC] Fetching user info from:", userinfoUrl);
           const response = await fetch(userinfoUrl, {
-            headers: { Authorization: `Bearer ${tokens.accessToken}` },
+            headers: { Authorization: `Bearer ${accessToken}` },
           });
           console.log("[OIDC] Response status:", response.status);
           const data = await response.json();

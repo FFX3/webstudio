@@ -82,38 +82,28 @@ const genericCreateAccount = async (
   }
 
   // https://github.com/PostgREST/postgrest/blob/bfbd033c6e9f38cfbc8b1cfe19ee009a9379e3dd/docs/references/errors.rst#L234
-  console.log("[DB] SELECT error object:", JSON.stringify(dbUser.error, null, 2));
-  console.log("[DB] Error code check:", {
-    code: dbUser.error.code,
-    isPGRST116: dbUser.error.code === "PGRST116",
-  });
-
   if (dbUser.error.code !== "PGRST116") {
-    console.error("[DB] Unexpected error (not PGRST116):", dbUser.error);
+    console.error(dbUser.error);
     throw new Error("User not found");
   }
 
   const userId = crypto.randomUUID();
-  const insertData = {
-    id: userId,
-    email: userData.email,
-    username: userData.username,
-    image: userData.image,
-    provider: userData.provider,
-  };
+  console.log("[DB] Creating new user:", { id: userId, ...userData });
 
-  console.log("[DB] Inserting new user with data:", JSON.stringify(insertData, null, 2));
-
-  const newUser = await context.postgrest.client
-    .from("User")
-    .insert({
-      id: userId,
-      ...userData,
-    })
-    .select()
-    .single();
-
-  console.log("[DB] Insert result:", newUser.error ? newUser.error : "success");
+  let newUser;
+  try {
+    newUser = await context.postgrest.client
+      .from("User")
+      .insert({
+        id: userId,
+        ...userData,
+      })
+      .select()
+      .single();
+  } catch (err) {
+    console.error("[DB] Insert threw:", err);
+    throw err;
+  }
 
   if (newUser.error) {
     console.error(newUser.error);

@@ -105,10 +105,14 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
           // Fetch user info from GoTrue /user endpoint (not OIDC userinfo)
           // GoTrue's /user returns email directly, /oauth/userinfo may not
           const userinfoUrl = env.OIDC_ISSUER_URL + "/user";
+          console.log("[OIDC] Fetching user info from:", userinfoUrl);
           const response = await fetch(userinfoUrl, {
             headers: { Authorization: `Bearer ${tokens.accessToken}` },
           });
+          console.log("[OIDC] Response status:", response.status);
           const profile = await response.json();
+          console.log("[OIDC] Profile from /user:", JSON.stringify(profile, null, 2));
+          console.log("[OIDC] Email:", profile.email);
           return strategyCallback({
             profile: {
               // GoTrue /user returns id, not sub

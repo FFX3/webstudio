@@ -3,6 +3,7 @@ import { FormStrategy } from "remix-auth-form";
 import { GitHubStrategy, type GitHubProfile } from "remix-auth-github";
 import { GoogleStrategy, type GoogleProfile } from "remix-auth-google";
 import { OAuth2Strategy } from "remix-auth-oauth2";
+import { z } from "zod";
 import * as db from "~/shared/db";
 import { sessionStorage } from "~/services/session.server";
 import { AUTH_PROVIDERS } from "~/shared/session";
@@ -13,6 +14,25 @@ import { builderAuthenticator } from "./builder-auth.server";
 import { staticEnv } from "~/env/env.static.server";
 import type { SessionData } from "./auth.server.utils";
 import { createContext } from "~/shared/context.server";
+
+// OIDC discovery document schema
+const OIDCConfigSchema = z.object({
+  authorization_endpoint: z.string().url(),
+  token_endpoint: z.string().url(),
+  userinfo_endpoint: z.string().url().optional(),
+});
+
+// GoTrue /user response schema
+const GoTrueUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  user_metadata: z
+    .object({
+      name: z.string().optional(),
+      picture: z.string().url().optional(),
+    })
+    .optional(),
+});
 
 const transformRefToAlias = (input: string) => {
   const rawAlias = input.endsWith(".staging") ? input.slice(0, -8) : input;
@@ -91,7 +111,8 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
   // Fetch OIDC discovery document and set up strategy
   fetch(`${env.OIDC_ISSUER_URL}/.well-known/openid-configuration`)
     .then((res) => res.json())
-    .then((config) => {
+    .then((data) => {
+      const config = OIDCConfigSchema.parse(data);
       const oidc = new OAuth2Strategy(
         {
           clientId: env.OIDC_CLIENT_ID!,
@@ -110,18 +131,18 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
             headers: { Authorization: `Bearer ${tokens.accessToken}` },
           });
           console.log("[OIDC] Response status:", response.status);
-          const profile = await response.json();
-          console.log("[OIDC] Profile from /user:", JSON.stringify(profile, null, 2));
-          console.log("[OIDC] Email:", profile.email);
+          const data = await response.json();
+          console.log("[OIDC] Raw response from /user:", JSON.stringify(data, null, 2));
+          const profile = GoTrueUserSchema.parse(data);
+          console.log("[OIDC] Validated email:", profile.email);
           return strategyCallback({
             profile: {
-              // GoTrue /user returns id, not sub
-              id: profile.id || profile.sub,
+              id: profile.id,
               displayName: profile.user_metadata?.name || profile.email,
               emails: [{ value: profile.email }],
               photos: profile.user_metadata?.picture ? [{ value: profile.user_metadata.picture }] : [],
               provider: "oidc",
-              _json: profile,
+              _json: data,
             } as GitHubProfile,
             request,
           });

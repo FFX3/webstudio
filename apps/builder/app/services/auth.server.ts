@@ -14,24 +14,13 @@ import { builderAuthenticator } from "./builder-auth.server";
 import { staticEnv } from "~/env/env.static.server";
 import type { SessionData } from "./auth.server.utils";
 import { createContext } from "~/shared/context.server";
+import { GoTrueUserSchema } from "~/shared/oidc";
 
 // OIDC discovery document schema
 const OIDCConfigSchema = z.object({
   authorization_endpoint: z.string().url(),
   token_endpoint: z.string().url(),
   userinfo_endpoint: z.string().url().optional(),
-});
-
-// GoTrue /user response schema
-const GoTrueUserSchema = z.object({
-  id: z.string(),
-  email: z.string().email(),
-  user_metadata: z
-    .object({
-      name: z.string().optional(),
-      picture: z.string().url().optional(),
-    })
-    .optional(),
 });
 
 const transformRefToAlias = (input: string) => {
@@ -123,32 +112,39 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
           scopes: ["openid", "email", "profile"],
         },
         async ({ tokens, request }) => {
-          console.log("[OIDC] Tokens received:", JSON.stringify(tokens, null, 2));
           const accessToken = (tokens as Record<string, string>).access_token;
-          console.log("[OIDC] Access token (first 50 chars):", accessToken?.substring(0, 50));
-          // Fetch user info from GoTrue /user endpoint (not OIDC userinfo)
-          // GoTrue's /user returns email directly, /oauth/userinfo may not
+          if (!accessToken) {
+            throw new Error("No access_token in OIDC token response");
+          }
+
+          // Fetch user info from GoTrue /user endpoint
+          // GoTrue's /user returns full user data, /oauth/userinfo only returns sub
           const userinfoUrl = env.OIDC_ISSUER_URL + "/user";
           console.log("[OIDC] Fetching user info from:", userinfoUrl);
+
           const response = await fetch(userinfoUrl, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
-          console.log("[OIDC] Response status:", response.status);
+
+          if (!response.ok) {
+            const text = await response.text();
+            console.error("[OIDC] Failed to fetch user info:", response.status, text);
+            throw new Error(`Failed to fetch user info: ${response.status}`);
+          }
+
           const data = await response.json();
-          console.log("[OIDC] Raw response from /user:", JSON.stringify(data, null, 2));
-          const profile = GoTrueUserSchema.parse(data);
-          console.log("[OIDC] Validated email:", profile.email);
-          return strategyCallback({
-            profile: {
-              id: profile.id,
-              displayName: profile.user_metadata?.name || profile.email,
-              emails: [{ value: profile.email }],
-              photos: profile.user_metadata?.picture ? [{ value: profile.user_metadata.picture }] : [],
-              provider: "oidc",
-              _json: data,
-            } as GitHubProfile,
-            request,
-          });
+          console.log("[OIDC] User data received for:", data.email);
+
+          const goTrueUser = GoTrueUserSchema.parse(data);
+          const context = await createContext(request);
+
+          try {
+            const user = await db.user.createOrLoginWithOIDC(context, goTrueUser);
+            return { userId: user.id, createdAt: Date.now() };
+          } catch (error) {
+            console.error("[OIDC] Failed to create/login user:", error);
+            throw error;
+          }
         }
       );
       authenticator.use(oidc, "oidc");

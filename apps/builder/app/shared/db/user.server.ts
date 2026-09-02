@@ -5,6 +5,7 @@ import {
 } from "@webstudio-is/trpc-interface/index.server";
 import type { GitHubProfile } from "remix-auth-github";
 import type { GoogleProfile } from "remix-auth-google";
+import type { GoTrueUser } from "~/shared/oidc";
 import { z } from "zod";
 
 export type User = Omit<
@@ -81,14 +82,27 @@ const genericCreateAccount = async (
   }
 
   // https://github.com/PostgREST/postgrest/blob/bfbd033c6e9f38cfbc8b1cfe19ee009a9379e3dd/docs/references/errors.rst#L234
+  console.log("[DB] SELECT error object:", JSON.stringify(dbUser.error, null, 2));
+  console.log("[DB] Error code check:", {
+    code: dbUser.error.code,
+    isPGRST116: dbUser.error.code === "PGRST116",
+  });
+
   if (dbUser.error.code !== "PGRST116") {
-    console.error(dbUser.error);
+    console.error("[DB] Unexpected error (not PGRST116):", dbUser.error);
     throw new Error("User not found");
   }
 
   const userId = crypto.randomUUID();
+  const insertData = {
+    id: userId,
+    email: userData.email,
+    username: userData.username,
+    image: userData.image,
+    provider: userData.provider,
+  };
 
-  console.log("[DB] Inserting new user:", { id: userId, ...userData });
+  console.log("[DB] Inserting new user with data:", JSON.stringify(insertData, null, 2));
 
   const newUser = await context.postgrest.client
     .from("User")
@@ -129,12 +143,45 @@ export const createOrLoginWithOAuth = async (
   context: AppContext,
   profile: GoogleProfile | GitHubProfile
 ): Promise<User> => {
+  const email = (profile.emails ?? [])[0]?.value;
+  if (!email) {
+    throw new Error("Email is required for user creation");
+  }
+
   const userData = {
-    email: (profile.emails ?? [])[0]?.value,
-    username: profile.displayName,
-    image: (profile.photos ?? [])[0]?.value,
+    email,
+    username: profile.displayName ?? email,
+    image: (profile.photos ?? [])[0]?.value ?? "",
     provider: profile.provider,
   };
+
+  const newUser = await genericCreateAccount(context, userData);
+  return newUser;
+};
+
+export const createOrLoginWithOIDC = async (
+  context: AppContext,
+  goTrueUser: GoTrueUser
+): Promise<User> => {
+  const { email, user_metadata } = goTrueUser;
+
+  console.log("[OIDC] Creating/logging in user:", {
+    email,
+    hasName: !!user_metadata.name,
+    hasAvatar: !!(user_metadata.picture || user_metadata.avatar_url),
+  });
+
+  const userData = {
+    email,
+    username:
+      user_metadata.name ||
+      user_metadata.full_name ||
+      email.split("@")[0],
+    image: user_metadata.picture || user_metadata.avatar_url || "",
+    provider: "oidc",
+  };
+
+  console.log("[OIDC] Calling genericCreateAccount with:", userData);
   const newUser = await genericCreateAccount(context, userData);
   return newUser;
 };

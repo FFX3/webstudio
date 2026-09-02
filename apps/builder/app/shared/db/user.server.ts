@@ -88,22 +88,15 @@ const genericCreateAccount = async (
   }
 
   const userId = crypto.randomUUID();
-  console.log("[DB] Creating new user:", { id: userId, ...userData });
 
-  let newUser;
-  try {
-    newUser = await context.postgrest.client
-      .from("User")
-      .insert({
-        id: userId,
-        ...userData,
-      })
-      .select()
-      .single();
-  } catch (err) {
-    console.error("[DB] Insert threw:", err);
-    throw err;
-  }
+  const newUser = await context.postgrest.client
+    .from("User")
+    .insert({
+      id: userId,
+      ...userData,
+    })
+    .select()
+    .single();
 
   if (newUser.error) {
     console.error(newUser.error);
@@ -155,12 +148,6 @@ export const createOrLoginWithOIDC = async (
 ): Promise<User> => {
   const { email, user_metadata } = goTrueUser;
 
-  console.log("[OIDC] Creating/logging in user:", {
-    email,
-    hasName: !!user_metadata.name,
-    hasAvatar: !!(user_metadata.picture || user_metadata.avatar_url),
-  });
-
   const userData = {
     email,
     username:
@@ -171,9 +158,7 @@ export const createOrLoginWithOIDC = async (
     provider: "oidc",
   };
 
-  console.log("[OIDC] Calling genericCreateAccount with:", userData);
-  const newUser = await genericCreateAccount(context, userData);
-  return newUser;
+  return genericCreateAccount(context, userData);
 };
 
 export const createOrLoginWithDev = async (

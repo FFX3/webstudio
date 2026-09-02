@@ -120,31 +120,19 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
           // Fetch user info from GoTrue /user endpoint
           // GoTrue's /user returns full user data, /oauth/userinfo only returns sub
           const userinfoUrl = env.OIDC_ISSUER_URL + "/user";
-          console.log("[OIDC] Fetching user info from:", userinfoUrl);
-
           const response = await fetch(userinfoUrl, {
             headers: { Authorization: `Bearer ${accessToken}` },
           });
 
           if (!response.ok) {
-            const text = await response.text();
-            console.error("[OIDC] Failed to fetch user info:", response.status, text);
             throw new Error(`Failed to fetch user info: ${response.status}`);
           }
 
           const data = await response.json();
-          console.log("[OIDC] User data received for:", data.email);
-
           const goTrueUser = GoTrueUserSchema.parse(data);
           const context = await createContext(request);
-
-          try {
-            const user = await db.user.createOrLoginWithOIDC(context, goTrueUser);
-            return { userId: user.id, createdAt: Date.now() };
-          } catch (error) {
-            console.error("[OIDC] Failed to create/login user:", error);
-            throw error;
-          }
+          const user = await db.user.createOrLoginWithOIDC(context, goTrueUser);
+          return { userId: user.id, createdAt: Date.now() };
         }
       );
       authenticator.use(oidc, "oidc");

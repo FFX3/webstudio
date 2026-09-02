@@ -123,6 +123,8 @@ if (env.OIDC_ISSUER_URL && env.OIDC_CLIENT_ID) {
           scopes: ["openid", "email", "profile"],
         },
         async ({ tokens, request }) => {
+          console.log("[OIDC] Tokens received:", JSON.stringify(tokens, null, 2));
+          console.log("[OIDC] Access token (first 50 chars):", tokens.accessToken?.substring(0, 50));
           // Fetch user info from GoTrue /user endpoint (not OIDC userinfo)
           // GoTrue's /user returns email directly, /oauth/userinfo may not
           const userinfoUrl = env.OIDC_ISSUER_URL + "/user";

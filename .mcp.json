@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "webstudio": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "webstudio@latest",
+        "mcp"
+      ]
+    }
+  }
+}

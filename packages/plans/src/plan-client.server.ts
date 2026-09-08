@@ -106,10 +106,38 @@ const getProductCache = (
   return promise;
 };
 
+// Self-hosted: all features enabled
+const selfHostedPlanFeatures: PlanFeatures = {
+  canDownloadAssets: true,
+  canRestoreBackups: true,
+  allowAdditionalPermissions: true,
+  allowDynamicData: true,
+  allowAuth: true,
+  allowContentMode: true,
+  allowStagingPublish: true,
+  maxContactEmailsPerProject: 1000,
+  maxDomainsAllowedPerUser: 1000,
+  maxDailyPublishesPerUser: 10000,
+  maxWorkspaces: 1000,
+  maxProjectsAllowedPerUser: 10000,
+  maxAssetsPerProject: 10000,
+  seatsIncluded: 1000,
+  maxSeatsPerWorkspace: 1000,
+};
+
 export const getPlanInfo = async (
   userIds: string[],
-  context: { postgrest: PostgrestContext }
+  _context: { postgrest: PostgrestContext }
 ): Promise<Map<string, PlanInfo>> => {
+  // Self-hosted: always return full features for all users
+  return new Map(
+    userIds.map((userId) => [
+      userId,
+      { planFeatures: selfHostedPlanFeatures, purchases: [] },
+    ])
+  );
+
+  /* Original implementation for SaaS with Stripe:
   const { postgrest } = context;
 
   if (userIds.length === 0) {
@@ -203,6 +231,7 @@ export const getPlanInfo = async (
       ];
     })
   );
+  */
 };
 
 /**

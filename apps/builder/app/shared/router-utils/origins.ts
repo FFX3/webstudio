@@ -3,6 +3,14 @@ import { parseBuilderUrl } from "@webstudio-is/protocol";
 export const getRequestOrigin = (urlStr: string) => {
   const url = new URL(urlStr);
 
+  // Force https in production (TLS terminates at ingress, internal requests are http)
+  if (
+    process.env.DEPLOYMENT_ENVIRONMENT === "production" &&
+    url.protocol === "http:"
+  ) {
+    url.protocol = "https:";
+  }
+
   return url.origin;
 };
 

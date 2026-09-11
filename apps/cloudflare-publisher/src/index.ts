@@ -93,24 +93,24 @@ const handleTrpcRequest = async (
   req: IncomingMessage,
   res: ServerResponse
 ): Promise<void> => {
-  // Verify authorization
+  // Parse URL
+  const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
+  const pathname = url.pathname;
+
+  // Handle health check (no auth required)
+  if (pathname === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+
+  // Verify authorization for all other endpoints
   const authHeader = req.headers.authorization;
   const expectedToken = process.env.TRPC_SERVER_API_TOKEN;
 
   if (expectedToken && authHeader !== expectedToken) {
     res.writeHead(401, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Unauthorized" }));
-    return;
-  }
-
-  // Parse URL
-  const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-  const pathname = url.pathname;
-
-  // Handle health check
-  if (pathname === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok" }));
     return;
   }
 

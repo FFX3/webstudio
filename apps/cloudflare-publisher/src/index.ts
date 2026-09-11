@@ -1,5 +1,5 @@
-import { createServer } from "node:http";
-import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
+import express from "express";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { initTRPC } from "@trpc/server";
 import { z } from "zod";
 import { handlePublish, handleUnpublish } from "./publish.js";
@@ -76,37 +76,27 @@ const appRouter = t.router({
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 const expectedToken = process.env.TRPC_SERVER_API_TOKEN;
 
-const server = createServer(async (req, res) => {
-  // Health check - handle before anything else
-  if (req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok" }));
-    return;
-  }
+const app = express();
 
-  // Auth check for TRPC routes
-  if (expectedToken && req.headers.authorization !== expectedToken) {
-    res.writeHead(401, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Unauthorized" }));
-    return;
-  }
-
-  // Handle TRPC requests (strip /trpc prefix if present)
-  const path = req.url?.replace(/^\/trpc/, "") ?? "/";
-  req.url = path;
-
-  await nodeHTTPRequestHandler({
-    router: appRouter,
-    createContext: () => ({}),
-    req,
-    res,
-    path: path.slice(1), // Remove leading slash for TRPC
-  });
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
 });
 
-server.listen(PORT);
-console.log(`Cloudflare Publisher service listening on port ${PORT}`);
-console.log(`Health check: http://localhost:${PORT}/health`);
+app.use(
+  "/trpc",
+  (req, res, next) => {
+    if (expectedToken && req.headers.authorization !== expectedToken) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    next();
+  },
+  createExpressMiddleware({ router: appRouter })
+);
+
+const server = app.listen(PORT, () => {
+  console.log(`Cloudflare Publisher service listening on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
+});
 
 const shutdown = async () => {
   console.log("Shutting down...");

@@ -1,4 +1,5 @@
-import { createHTTPServer } from "@trpc/server/adapters/standalone";
+import { createServer } from "node:http";
+import { nodeHTTPRequestHandler } from "@trpc/server/adapters/node-http";
 import { initTRPC } from "@trpc/server";
 import { z } from "zod";
 import { handlePublish, handleUnpublish } from "./publish.js";
@@ -75,25 +76,32 @@ const appRouter = t.router({
 const PORT = parseInt(process.env.PORT ?? "4000", 10);
 const expectedToken = process.env.TRPC_SERVER_API_TOKEN;
 
-const server = createHTTPServer({
-  router: appRouter,
-  createContext: ({ req, res }) => {
-    // Health check bypass
-    if (req.url === "/health") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "ok" }));
-      return {};
-    }
+const server = createServer(async (req, res) => {
+  // Health check - handle before anything else
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
 
-    // Auth check
-    if (expectedToken && req.headers.authorization !== expectedToken) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Unauthorized" }));
-      throw new Error("Unauthorized");
-    }
+  // Auth check for TRPC routes
+  if (expectedToken && req.headers.authorization !== expectedToken) {
+    res.writeHead(401, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Unauthorized" }));
+    return;
+  }
 
-    return {};
-  },
+  // Handle TRPC requests (strip /trpc prefix if present)
+  const path = req.url?.replace(/^\/trpc/, "") ?? "/";
+  req.url = path;
+
+  await nodeHTTPRequestHandler({
+    router: appRouter,
+    createContext: () => ({}),
+    req,
+    res,
+    path: path.slice(1), // Remove leading slash for TRPC
+  });
 });
 
 server.listen(PORT);
@@ -102,7 +110,7 @@ console.log(`Health check: http://localhost:${PORT}/health`);
 
 const shutdown = async () => {
   console.log("Shutting down...");
-  server.server.close();
+  server.close();
   await closePool();
   process.exit(0);
 };

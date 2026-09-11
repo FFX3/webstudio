@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
 import {
@@ -92,6 +92,12 @@ export const handlePublish = async (
       join(webstudioDir, "data.json"),
       JSON.stringify(localBundle, null, 2)
     );
+
+    // Clean generated files from previous builds
+    console.log("Cleaning previous build artifacts...");
+    await rm(join(buildDir, "pages"), { recursive: true, force: true });
+    await rm(join(buildDir, "app", "__generated__"), { recursive: true, force: true });
+    await rm(join(buildDir, "dist"), { recursive: true, force: true });
 
     console.log("Generating React code from Webstudio data...");
     execSync("pnpm cli:local build --template ssg", {

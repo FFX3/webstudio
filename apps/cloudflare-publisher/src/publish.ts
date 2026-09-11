@@ -92,9 +92,9 @@ export const handlePublish = async (
     return { success: false, error: "TRPC_SERVER_API_TOKEN not configured" };
   }
 
-  const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const cloudflareApiToken = process.env.CF_DEPLOY_TOKEN;
   if (!cloudflareApiToken) {
-    return { success: false, error: "CLOUDFLARE_API_TOKEN not configured" };
+    return { success: false, error: "CF_DEPLOY_TOKEN not configured" };
   }
 
   // Fetch the build bundle from Webstudio

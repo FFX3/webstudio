@@ -87,9 +87,9 @@ export const handlePublish = async (
 ): Promise<PublishResult> => {
   console.log(`Publishing build ${input.buildId} from ${input.builderOrigin}`);
 
-  const serviceToken = process.env.WEBSTUDIO_SERVICE_TOKEN;
+  const serviceToken = process.env.TRPC_SERVER_API_TOKEN;
   if (!serviceToken) {
-    return { success: false, error: "WEBSTUDIO_SERVICE_TOKEN not configured" };
+    return { success: false, error: "TRPC_SERVER_API_TOKEN not configured" };
   }
 
   const cloudflareApiToken = process.env.CLOUDFLARE_API_TOKEN;

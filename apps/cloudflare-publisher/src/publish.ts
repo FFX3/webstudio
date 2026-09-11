@@ -1,13 +1,16 @@
-import { mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { randomUUID } from "node:crypto";
+import { execSync } from "node:child_process";
 import {
   loadProjectBundleByBuildId,
+  toLocalProjectBundle,
   type PublishedProjectBundle,
 } from "@webstudio-is/http-client";
 import { getDeploymentTarget } from "./db.js";
 import { deployToCloudflarePages } from "./cloudflare.js";
+
+// SSG template location - within the monorepo to preserve workspace deps
+const TEMPLATE_DIR = process.env.WEBSTUDIO_TEMPLATE_DIR ?? "/app/fixtures/ssg-cloudflare-pages";
 
 interface PublishInput {
   buildId: string;
@@ -22,65 +25,6 @@ interface PublishResult {
   error?: string;
   url?: string;
 }
-
-const generateStaticSite = async (
-  bundle: PublishedProjectBundle,
-  outputDir: string
-): Promise<void> => {
-  // Create output directory
-  await mkdir(outputDir, { recursive: true });
-
-  const { pages, assets, build } = bundle;
-
-  // For each page, generate an HTML file
-  for (const page of pages) {
-    const pagePath = page.path === "" ? "index" : page.path.replace(/^\//, "");
-    const htmlPath = join(outputDir, `${pagePath}.html`);
-
-    // Ensure parent directory exists
-    const parentDir = join(outputDir, ...pagePath.split("/").slice(0, -1));
-    if (parentDir !== outputDir && pagePath.includes("/")) {
-      await mkdir(parentDir, { recursive: true });
-    }
-
-    // Generate basic HTML
-    // TODO: In a full implementation, this would use the CLI's prebuild logic
-    // to generate proper React components and styles
-    const title =
-      typeof page.title === "string" ? page.title.replace(/^"|"$/g, "") : page.name;
-
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; }
-  </style>
-</head>
-<body>
-  <h1>${page.name}</h1>
-  <p>This page was generated from Webstudio.</p>
-  <p>Build ID: ${build.id}</p>
-  <p>Project: ${bundle.projectTitle}</p>
-</body>
-</html>`;
-
-    await writeFile(htmlPath, html, "utf-8");
-  }
-
-  // Download and save assets
-  for (const asset of assets) {
-    if (asset.type === "image" || asset.type === "font") {
-      const assetDir = join(outputDir, "assets");
-      await mkdir(assetDir, { recursive: true });
-      // TODO: Download actual asset files from bundle.origin
-    }
-  }
-
-  console.log(`Generated ${pages.length} pages to ${outputDir}`);
-};
 
 export const handlePublish = async (
   input: PublishInput
@@ -129,34 +73,59 @@ export const handlePublish = async (
     `Deploying to Cloudflare Pages project: ${target.cloudflareProjectName}`
   );
 
-  // Create temporary directory for build output
-  const buildDir = join(tmpdir(), `webstudio-build-${randomUUID()}`);
+  // Use template directory directly (simpler, works with workspace deps)
+  // Note: This doesn't support concurrent builds - add locking/queuing if needed
+  const buildDir = TEMPLATE_DIR;
 
   try {
-    // Generate static site
-    await generateStaticSite(bundle, buildDir);
+    // Write .webstudio/config.json
+    const webstudioDir = join(buildDir, ".webstudio");
+    await mkdir(webstudioDir, { recursive: true });
+    await writeFile(
+      join(webstudioDir, "config.json"),
+      JSON.stringify({ projectId }, null, 2)
+    );
 
-    // Deploy to Cloudflare Pages
+    // Write .webstudio/data.json
+    const localBundle = toLocalProjectBundle(bundle);
+    await writeFile(
+      join(webstudioDir, "data.json"),
+      JSON.stringify(localBundle, null, 2)
+    );
+
+    console.log("Generating React code from Webstudio data...");
+    execSync("pnpm cli:local build --template ssg", {
+      cwd: buildDir,
+      stdio: "inherit",
+    });
+
+    console.log("Building static site...");
+    execSync("pnpm build", {
+      cwd: buildDir,
+      stdio: "inherit",
+    });
+
+    // Deploy to Cloudflare Pages (vike outputs to dist/client)
+    const distDir = join(buildDir, "dist", "client");
     const result = await deployToCloudflarePages(
       {
         accountId: target.cloudflareAccountId,
         apiToken: cloudflareApiToken,
       },
       target.cloudflareProjectName,
-      buildDir
+      distDir
     );
 
     return {
       success: true,
       url: result.url,
     };
-  } finally {
-    // Cleanup temp directory
-    try {
-      await rm(buildDir, { recursive: true, force: true });
-    } catch {
-      // Ignore cleanup errors
-    }
+  } catch (error) {
+    console.error("Build/deploy error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 };
 

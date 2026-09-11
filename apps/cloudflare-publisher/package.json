@@ -16,6 +16,7 @@
     "@webstudio-is/trpc-interface": "workspace:*",
     "express": "^4.21.0",
     "pg": "^8.13.1",
+    "wrangler": "^3.63.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

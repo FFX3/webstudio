@@ -5,9 +5,9 @@
   "description": "Cloudflare Pages deployment service for Webstudio",
   "type": "module",
   "scripts": {
-    "build": "rm -rf dist && esbuild src/index.ts --outdir=dist --bundle --format=esm --platform=node --conditions=webstudio --external:pg --external:zod",
+    "build": "rm -rf dist && esbuild src/index.ts --outfile=dist/index.cjs --bundle --format=cjs --platform=node --conditions=webstudio --external:pg --external:zod",
     "dev": "tsx watch --conditions=webstudio src/index.ts",
-    "start": "node dist/index.js",
+    "start": "node dist/index.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

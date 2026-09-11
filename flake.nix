@@ -54,7 +54,7 @@
           echo "  Image: $PUBLISHER_IMAGE:$IMAGE_TAG"
 
           ${pkgs.docker}/bin/docker build \
-            -f ${self}/apps/cloudflare-publisher/Dockerfile \
+            -f ${self}/Dockerfile.cloudflare-publisher \
             -t "$PUBLISHER_IMAGE:$IMAGE_TAG" \
             ${self}
 

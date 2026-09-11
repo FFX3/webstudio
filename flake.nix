@@ -34,19 +34,32 @@
         build-docker = pkgs.writeShellScriptBin "build-webstudio" ''
           set -euo pipefail
 
-          IMAGE_NAME="''${WEBSTUDIO_IMAGE:-webstudio-builder}"
+          BUILDER_IMAGE="''${WEBSTUDIO_IMAGE:-webstudio-builder}"
+          PUBLISHER_IMAGE="''${PUBLISHER_IMAGE:-cloudflare-publisher}"
           IMAGE_TAG="''${WEBSTUDIO_TAG:-latest}"
 
           echo "Building Webstudio builder image..."
-          echo "  Image: $IMAGE_NAME:$IMAGE_TAG"
+          echo "  Image: $BUILDER_IMAGE:$IMAGE_TAG"
 
           ${pkgs.docker}/bin/docker build \
             -f ${self}/Dockerfile.builder \
-            -t "$IMAGE_NAME:$IMAGE_TAG" \
+            -t "$BUILDER_IMAGE:$IMAGE_TAG" \
             ${self}
 
           echo ""
-          echo "Built: $IMAGE_NAME:$IMAGE_TAG"
+          echo "Built: $BUILDER_IMAGE:$IMAGE_TAG"
+
+          echo ""
+          echo "Building Cloudflare publisher image..."
+          echo "  Image: $PUBLISHER_IMAGE:$IMAGE_TAG"
+
+          ${pkgs.docker}/bin/docker build \
+            -f ${self}/apps/cloudflare-publisher/Dockerfile \
+            -t "$PUBLISHER_IMAGE:$IMAGE_TAG" \
+            ${self}
+
+          echo ""
+          echo "Built: $PUBLISHER_IMAGE:$IMAGE_TAG"
         '';
 
         # Load image into local docker daemon

@@ -14,8 +14,8 @@ COPY apps/cloudflare-publisher ./apps/cloudflare-publisher
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
-# Build the service and its dependencies
-RUN pnpm --filter "@webstudio-is/cloudflare-publisher..." build
+# Build the service (esbuild bundles from source via webstudio condition)
+RUN pnpm --filter "@webstudio-is/cloudflare-publisher" build
 
 # Production stage
 FROM base AS runner

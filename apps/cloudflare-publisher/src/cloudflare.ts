@@ -67,10 +67,32 @@ const collectFiles = async (
   return files;
 };
 
-export const createPagesProject = async (
+const projectExists = async (
+  config: CloudflareConfig,
+  projectName: string
+): Promise<boolean> => {
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects/${projectName}`,
+    {
+      headers: {
+        Authorization: `Bearer ${config.apiToken}`,
+      },
+    }
+  );
+  return response.ok;
+};
+
+export const ensurePagesProject = async (
   config: CloudflareConfig,
   projectName: string
 ): Promise<void> => {
+  // Check if project exists first
+  if (await projectExists(config, projectName)) {
+    console.log(`Project ${projectName} exists`);
+    return;
+  }
+
+  console.log(`Creating project ${projectName}...`);
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/pages/projects`,
     {
@@ -88,17 +110,11 @@ export const createPagesProject = async (
 
   if (!response.ok) {
     const data = (await response.json()) as CloudflareApiResponse;
-    // Ignore "project already exists" error
-    if (
-      data.errors?.some((e) => e.code === 8000007 || e.code === 8000009)
-    ) {
-      console.log(`Project ${projectName} already exists`);
-      return;
-    }
     throw new Error(
       `Failed to create Pages project: ${JSON.stringify(data.errors)}`
     );
   }
+  console.log(`Project ${projectName} created`);
 };
 
 export const deployToCloudflarePages = async (
@@ -109,7 +125,7 @@ export const deployToCloudflarePages = async (
   console.log(`Deploying ${directory} to Cloudflare Pages project ${projectName}`);
 
   // Ensure project exists
-  await createPagesProject(config, projectName);
+  await ensurePagesProject(config, projectName);
 
   // Collect all files
   const files = await collectFiles(directory);

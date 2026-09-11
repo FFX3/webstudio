@@ -167,28 +167,29 @@ const handleTrpcRequest = async (
     try {
       if (procedure === "deployment.publish") {
         const validatedInput = publishInput.parse(input);
-        const result = await deploymentRouter.publish({
-          ctx: {},
-          input: validatedInput,
-          path: "deployment.publish",
-          rawInput: input,
-          type: "mutation",
-        });
-        results.push({ result: { data: result } });
+        console.log("Received publish request:", validatedInput.logProjectName);
+        const result = await handlePublish(validatedInput);
+        if (result.success) {
+          console.log(`Published successfully: ${result.url}`);
+          results.push({ result: { data: { success: true } } });
+        } else {
+          console.error(`Publish failed: ${result.error}`);
+          results.push({ result: { data: { success: false, error: result.error ?? "Unknown error" } } });
+        }
       } else if (procedure === "deployment.unpublish") {
         const validatedInput = unpublishInput.parse(input);
-        const result = await deploymentRouter.unpublish({
-          ctx: {},
-          input: validatedInput,
-          path: "deployment.unpublish",
-          rawInput: input,
-          type: "mutation",
-        });
-        results.push({ result: { data: result } });
+        console.log("Received unpublish request:", validatedInput.domain);
+        const result = await handleUnpublish(validatedInput.domain);
+        if (result.success) {
+          results.push({ result: { data: { success: true } } });
+        } else {
+          results.push({ result: { data: { success: false, error: result.error ?? "Unknown error" } } });
+        }
       } else {
         results.push({ error: { message: `Unknown procedure: ${procedure}` } });
       }
     } catch (error) {
+      console.error("Error handling procedure:", error);
       results.push({
         error: {
           message: error instanceof Error ? error.message : String(error),
